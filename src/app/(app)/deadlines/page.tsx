@@ -35,7 +35,6 @@ export default async function DeadlinesPage() {
       ) : (
         CATEGORY_ORDER.map((category) => {
           const categoryItems = deadlines.filter((d) => d.category === category);
-          if (categoryItems.length === 0) return null;
 
           return (
             <section key={category} className="flex flex-col gap-3">
