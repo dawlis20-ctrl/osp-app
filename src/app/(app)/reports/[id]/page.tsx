@@ -37,10 +37,10 @@ export default async function ReportDetailPage({ params }: PageProps<"/reports/[
         </div>
         <div className="flex gap-3">
           <a
-            href={`/reports/${report.id}/pdf`}
+            href={`/reports/${report.id}/docx`}
             className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark"
           >
-            Pobierz PDF
+            Pobierz DOCX
           </a>
           <Link
             href="/reports"

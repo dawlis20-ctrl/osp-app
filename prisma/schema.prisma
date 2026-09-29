@@ -26,6 +26,7 @@ model User {
   crewEntries     ReportCrewEntry[]
   reportsPrepared Report[]          @relation("ReportsPrepared")
   reportsChecked  Report[]          @relation("ReportsChecked")
+  meldunki        Meldunek[]
 }
 
 model Vehicle {
@@ -121,6 +122,94 @@ enum DeadlineCategory {
   SPRZET_RATOWNICZY
   SPRZET_ODO
   SAMOCHOD
+}
+
+model Meldunek {
+  id                   String    @id @default(cuid())
+  jednostkaZglaszajaca String    @default("OSP Skawina II")
+  data                 DateTime
+  adresZdarzenia       String
+  km                   String?
+  obiekt               String?
+  rodzajZdarzenia      String
+  wlasciciel           String?
+  sposobZadysponowania String?
+
+  czasZadysponowanie       String
+  czasWyjazd                String
+  czasNaMiejscu             String
+  czasLokalizacjaZagrozenia String?
+  czasZakonczenieDzialan    String
+  czasWKoszarach            String
+
+  przyczyna      String?
+  rodzajDzialan  String?
+  sprzetUzyty    String?
+  miejsceDzialan String?
+
+  pradowWody             Float?
+  zuzytoWody             Float?
+  zuzytoSorbentow        Float?
+  pradowProszku          Float?
+  zuzytoProszku          Float?
+  zuzytoNeutralizatorow  Float?
+  pradowPiany            Float?
+  zuzytoSrPianotworczego Float?
+
+  ofiaraImieNazwisko String?
+  ofiaraWiek         String?
+  ofiaraPlec         String?
+  ofiaraDzialania    String?
+  ofiaraSprzet       String?
+
+  straty       Float?
+  uratowano    Float?
+  powierzchnia Float?
+  kubatura     Float?
+  dlugosc      Float?
+  szerokosc    Float?
+  wysokosc     Float?
+
+  warunkiAtmosferyczne String?
+  kierujacyNazwisko    String?
+  kierujacyImie        String?
+  kierujacyOd          String?
+  kierujacyDo          String?
+  kierujacyJednostka   String?
+
+  opisPrzebiegu      String?
+  przekazanieMiejsca String?
+  uleglaZniszczeniu  String?
+
+  dataPrzeslania DateTime?
+  zglaszajacy    String?
+
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  jednostki   MeldunekUnit[]
+  inneSluzby  MeldunekOtherService[]
+}
+
+model MeldunekUnit {
+  id         String   @id @default(cuid())
+  meldunekId String
+  meldunek   Meldunek @relation(fields: [meldunekId], references: [id], onDelete: Cascade)
+  position   Int
+  jednostka  String
+  samochod   String?
+  liczbaOsob String?
+}
+
+model MeldunekOtherService {
+  id             String   @id @default(cuid())
+  meldunekId     String
+  meldunek       Meldunek @relation(fields: [meldunekId], references: [id], onDelete: Cascade)
+  position       Int
+  nazwa          String
+  liczbaPojazdow String?
+  liczbaOsob     String?
 }
 
 model Deadline {

@@ -1,0 +1,78 @@
+-- CreateTable
+CREATE TABLE "Meldunek" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "jednostkaZglaszajaca" TEXT NOT NULL DEFAULT 'OSP Skawina II',
+    "data" DATETIME NOT NULL,
+    "adresZdarzenia" TEXT NOT NULL,
+    "km" TEXT,
+    "obiekt" TEXT,
+    "rodzajZdarzenia" TEXT NOT NULL,
+    "wlasciciel" TEXT,
+    "sposobZadysponowania" TEXT,
+    "czasZadysponowanie" TEXT NOT NULL,
+    "czasWyjazd" TEXT NOT NULL,
+    "czasNaMiejscu" TEXT NOT NULL,
+    "czasLokalizacjaZagrozenia" TEXT,
+    "czasZakonczenieDzialan" TEXT NOT NULL,
+    "czasWKoszarach" TEXT NOT NULL,
+    "przyczyna" TEXT,
+    "rodzajDzialan" TEXT,
+    "sprzetUzyty" TEXT,
+    "miejsceDzialan" TEXT,
+    "pradowWody" REAL,
+    "zuzytoWody" REAL,
+    "zuzytoSorbentow" REAL,
+    "pradowProszku" REAL,
+    "zuzytoProszku" REAL,
+    "zuzytoNeutralizatorow" REAL,
+    "pradowPiany" REAL,
+    "zuzytoSrPianotworczego" REAL,
+    "ofiaraImieNazwisko" TEXT,
+    "ofiaraWiek" TEXT,
+    "ofiaraPlec" TEXT,
+    "ofiaraDzialania" TEXT,
+    "ofiaraSprzet" TEXT,
+    "straty" REAL,
+    "uratowano" REAL,
+    "powierzchnia" REAL,
+    "kubatura" REAL,
+    "dlugosc" REAL,
+    "szerokosc" REAL,
+    "wysokosc" REAL,
+    "warunkiAtmosferyczne" TEXT,
+    "kierujacyNazwisko" TEXT,
+    "kierujacyImie" TEXT,
+    "kierujacyOd" TEXT,
+    "kierujacyDo" TEXT,
+    "kierujacyJednostka" TEXT,
+    "opisPrzebiegu" TEXT,
+    "przekazanieMiejsca" TEXT,
+    "uleglaZniszczeniu" TEXT,
+    "dataPrzeslania" DATETIME,
+    "zglaszajacy" TEXT,
+    "createdById" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Meldunek_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "MeldunekUnit" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "meldunekId" TEXT NOT NULL,
+    "position" INTEGER NOT NULL,
+    "jednostka" TEXT NOT NULL,
+    "samochod" TEXT,
+    "liczbaOsob" TEXT,
+    CONSTRAINT "MeldunekUnit_meldunekId_fkey" FOREIGN KEY ("meldunekId") REFERENCES "Meldunek" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "MeldunekOtherService" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "meldunekId" TEXT NOT NULL,
+    "position" INTEGER NOT NULL,
+    "nazwa" TEXT NOT NULL,
+    "liczbaPojazdow" TEXT,
+    "liczbaOsob" TEXT,
+    CONSTRAINT "MeldunekOtherService_meldunekId_fkey" FOREIGN KEY ("meldunekId") REFERENCES "Meldunek" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);

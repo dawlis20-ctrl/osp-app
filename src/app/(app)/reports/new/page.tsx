@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { reportTypeLabels, reportPurposeLabels } from "@/lib/labels";
 
-const RATOWNIK_SLOTS = 6;
-const EQUIPMENT_SLOTS = 5;
+const RATOWNIK_SLOTS = 4;
+const RATOWNIK_EXTRA_SLOTS = 3; // tylko dla pierwszego pojazdu (GBA), pozycje 5-7 wg wzoru
+const EQUIPMENT_SLOTS = 3;
 const OTHER_UNIT_SLOTS = 6;
 
 async function createReport(formData: FormData) {
@@ -27,18 +28,19 @@ async function createReport(formData: FormData) {
     memberId: string;
   }[] = [];
 
-  for (const vehicle of vehicles) {
+  vehicles.forEach((vehicle, vehicleIndex) => {
     const dowodca = String(formData.get(`crew_${vehicle.id}_DOWODCA_1`) ?? "");
     if (dowodca) crewData.push({ vehicleId: vehicle.id, role: "DOWODCA", position: 1, memberId: dowodca });
 
     const kierowca = String(formData.get(`crew_${vehicle.id}_KIEROWCA_1`) ?? "");
     if (kierowca) crewData.push({ vehicleId: vehicle.id, role: "KIEROWCA", position: 1, memberId: kierowca });
 
-    for (let i = 1; i <= RATOWNIK_SLOTS; i++) {
+    const ratownikSlots = vehicleIndex === 0 ? RATOWNIK_SLOTS + RATOWNIK_EXTRA_SLOTS : RATOWNIK_SLOTS;
+    for (let i = 1; i <= ratownikSlots; i++) {
       const ratownik = String(formData.get(`crew_${vehicle.id}_RATOWNIK_${i}`) ?? "");
       if (ratownik) crewData.push({ vehicleId: vehicle.id, role: "RATOWNIK", position: i, memberId: ratownik });
     }
-  }
+  });
 
   const equipmentData: { name: string; workTime: string; notes: string | null }[] = [];
   for (let i = 1; i <= EQUIPMENT_SLOTS; i++) {
@@ -169,38 +171,18 @@ export default async function NewReportPage() {
                 Brak pojazdów w bazie — dodaj je w Ustawieniach.
               </p>
             )}
-            {vehicles.map((vehicle) => (
-              <div key={vehicle.id} className="rounded-lg border border-border p-3">
-                <p className="mb-2 text-sm font-semibold text-brand-navy">
-                  {vehicle.name} <span className="text-gray-400">({vehicle.plate})</span>
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="flex flex-col gap-1">
-                    <label className={labelClass}>Dowódca</label>
-                    <select name={`crew_${vehicle.id}_DOWODCA_1`} className={inputClass} defaultValue="">
-                      <option value="">—</option>
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className={labelClass}>Kierowca</label>
-                    <select name={`crew_${vehicle.id}_KIEROWCA_1`} className={inputClass} defaultValue="">
-                      <option value="">—</option>
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {Array.from({ length: RATOWNIK_SLOTS }, (_, i) => i + 1).map((i) => (
-                    <div key={i} className="flex flex-col gap-1">
-                      <label className={labelClass}>Ratownik {i}</label>
-                      <select name={`crew_${vehicle.id}_RATOWNIK_${i}`} className={inputClass} defaultValue="">
+            {vehicles.map((vehicle, vehicleIndex) => {
+              const ratownikSlots =
+                vehicleIndex === 0 ? RATOWNIK_SLOTS + RATOWNIK_EXTRA_SLOTS : RATOWNIK_SLOTS;
+              return (
+                <div key={vehicle.id} className="rounded-lg border border-border p-3">
+                  <p className="mb-2 text-sm font-semibold text-brand-navy">
+                    {vehicle.name} <span className="text-gray-400">({vehicle.plate})</span>
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>Dowódca</label>
+                      <select name={`crew_${vehicle.id}_DOWODCA_1`} className={inputClass} defaultValue="">
                         <option value="">—</option>
                         {users.map((u) => (
                           <option key={u.id} value={u.id}>
@@ -209,10 +191,34 @@ export default async function NewReportPage() {
                         ))}
                       </select>
                     </div>
-                  ))}
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>Kierowca</label>
+                      <select name={`crew_${vehicle.id}_KIEROWCA_1`} className={inputClass} defaultValue="">
+                        <option value="">—</option>
+                        {users.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {Array.from({ length: ratownikSlots }, (_, i) => i + 1).map((i) => (
+                      <div key={i} className="flex flex-col gap-1">
+                        <label className={labelClass}>Ratownik {i}</label>
+                        <select name={`crew_${vehicle.id}_RATOWNIK_${i}`} className={inputClass} defaultValue="">
+                          <option value="">—</option>
+                          {users.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </details>
 

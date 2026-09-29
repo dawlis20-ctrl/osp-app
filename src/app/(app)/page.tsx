@@ -29,6 +29,12 @@ export default async function DashboardPage() {
           + Nowy raport
         </Link>
         <Link
+          href="/meldunki/new"
+          className="rounded-lg border border-brand-navy px-4 py-2 text-sm font-semibold text-brand-navy hover:bg-brand-navy/5"
+        >
+          + Nowy meldunek
+        </Link>
+        <Link
           href="/deadlines/new"
           className="rounded-lg border border-brand-navy px-4 py-2 text-sm font-semibold text-brand-navy hover:bg-brand-navy/5"
         >

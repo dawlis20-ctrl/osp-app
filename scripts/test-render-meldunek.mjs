@@ -1,0 +1,85 @@
+import fs from "node:fs";
+import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
+
+const content = fs.readFileSync("src/lib/docx-templates/meldunek-template.docx", "binary");
+const zip = new PizZip(content);
+const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+
+const data = {
+  data: "26.09.2026",
+  adresZdarzenia: "ul. Krakowska 5, Skawina",
+  km: "3",
+  obiekt: "Budynek mieszkalny, 2 piętra",
+  rodzajZdarzenia: "Pożar",
+  wlasciciel: "Jan Testowy, ul. Krakowska 5",
+  sposobZadysponowania: "SKKM",
+  czasZadysponowanie: "10:00",
+  czasWyjazd: "10:03",
+  czasNaMiejscu: "10:12",
+  czasLokalizacjaZagrozenia: "10:14",
+  czasZakonczenieDzialan: "11:30",
+  czasWKoszarach: "11:50",
+  jedn1Jednostka: "OSP Skawina II",
+  jedn1Samochod: "GBA",
+  jedn1LiczbaOsob: "6",
+  jedn2Jednostka: "",
+  jedn2Samochod: "",
+  jedn2LiczbaOsob: "",
+  jedn3Jednostka: "",
+  jedn3Samochod: "",
+  jedn3LiczbaOsob: "",
+  jedn4Jednostka: "",
+  jedn4Samochod: "",
+  jedn4LiczbaOsob: "",
+  sluzba1Nazwa: "Policja",
+  sluzba1Pojazdy: "1",
+  sluzba1Osoby: "2",
+  sluzba2Nazwa: "",
+  sluzba2Pojazdy: "",
+  sluzba2Osoby: "",
+  sluzba3Nazwa: "",
+  sluzba3Pojazdy: "",
+  sluzba3Osoby: "",
+  przyczyna: "Zwarcie instalacji elektrycznej",
+  rodzajDzialan: "Gaszenie, oddymianie",
+  sprzetUzyty: "Prądownica, drabina",
+  miejsceDzialan: "Wewnątrz, parter",
+  pradowWody: "2",
+  zuzytoWody: "500",
+  zuzytoSorbentow: "",
+  pradowProszku: "",
+  zuzytoProszku: "",
+  zuzytoNeutralizatorow: "",
+  pradowPiany: "",
+  zuzytoSrPianotworczego: "",
+  ofiara1ImieNazwisko: "",
+  ofiara1Wiek: "",
+  ofiara1Plec: "",
+  ofiara1Dzialania: "",
+  ofiara1Sprzet: "",
+  straty: "50",
+  uratowano: "150",
+  powierzchnia: "80",
+  kubatura: "200",
+  dlugosc: "10",
+  szerokosc: "8",
+  wysokosc: "6",
+  warunkiAtmosferyczne: "Bezwietrznie, 15C",
+  kierujacyNazwisko: "Naczelnik",
+  kierujacyImie: "Jan",
+  kierujacyOd: "10:03",
+  kierujacyDo: "11:50",
+  kierujacyJednostka: "OSP Skawina II",
+  opisPrzebiegu: "Po przybyciu na miejsce stwierdzono pożar instalacji elektrycznej w kuchni.",
+  przekazanieMiejsca: "Przekazano właścicielowi.",
+  uleglaZniszczeniu: "Instalacja elektryczna, meble kuchenne",
+  dataPrzeslania: "26.09.2026",
+  zglaszajacy: "Jan Naczelnik, 500600700",
+};
+
+doc.render(data);
+
+const buf = doc.getZip().generate({ type: "nodebuffer" });
+fs.writeFileSync("scripts/out-test-meldunek.docx", buf);
+console.log("OK, wrote scripts/out-test-meldunek.docx", buf.length, "bytes");
