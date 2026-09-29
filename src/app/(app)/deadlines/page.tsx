@@ -56,7 +56,12 @@ export default async function DeadlinesPage() {
                               <li key={d.id} className="flex items-start gap-2 text-sm">
                                 <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${style.dot}`} />
                                 <div className="min-w-0">
-                                  <p className="truncate font-medium text-brand-navy">{d.label}</p>
+                                  <p className="truncate font-medium text-brand-navy">
+                                    {d.label}
+                                    {d.serialNumber && (
+                                      <span className="font-normal text-gray-400"> · {d.serialNumber}</span>
+                                    )}
+                                  </p>
                                   <p className="text-xs text-gray-500">
                                     {d.kind} · {d.dueDate.toLocaleDateString("pl-PL")}
                                   </p>

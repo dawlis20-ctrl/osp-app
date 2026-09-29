@@ -14,6 +14,7 @@ async function createDeadline(formData: FormData) {
   const kind = String(formData.get("kind") ?? "").trim();
   const dueDateRaw = String(formData.get("dueDate") ?? "");
   const reminderEmail = String(formData.get("reminderEmail") ?? "").trim();
+  const serialNumber = String(formData.get("serialNumber") ?? "").trim();
   let label = String(formData.get("label") ?? "").trim();
 
   if (!vehicleId || !kind || !dueDateRaw || !reminderEmail) return;
@@ -28,6 +29,7 @@ async function createDeadline(formData: FormData) {
       category,
       vehicleId,
       label,
+      serialNumber: serialNumber || null,
       kind,
       dueDate: new Date(dueDateRaw),
       reminderEmail,
@@ -96,6 +98,18 @@ export default async function NewDeadlinePage() {
             id="label"
             name="label"
             placeholder="np. Torba R1, Aparat ODO nr 2, Nosze"
+            className={inputClass}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="serialNumber" className="text-sm font-medium text-gray-700">
+            Numer seryjny <span className="text-gray-400">(opcjonalnie)</span>
+          </label>
+          <input
+            id="serialNumber"
+            name="serialNumber"
+            placeholder="np. SN-2024-00123"
             className={inputClass}
           />
         </div>

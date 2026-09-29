@@ -218,6 +218,7 @@ model Deadline {
   vehicleId         String
   vehicle           Vehicle          @relation(fields: [vehicleId], references: [id])
   label             String
+  serialNumber      String?
   kind              String
   dueDate           DateTime
   reminderEmail     String
