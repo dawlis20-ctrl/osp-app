@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { urgencyOf, urgencyStyles } from "@/lib/deadlines";
-import { deadlineTypeLabels } from "@/lib/labels";
+import { deadlineCategoryLabels } from "@/lib/labels";
+
+const CATEGORY_ORDER = ["SPRZET_MEDYCZNY", "SPRZET_RATOWNICZY", "SPRZET_ODO", "SAMOCHOD"] as const;
 
 export default async function DeadlinesPage() {
-  const deadlines = await prisma.deadline.findMany({ orderBy: { dueDate: "asc" } });
+  const [deadlines, vehicles] = await Promise.all([
+    prisma.deadline.findMany({ orderBy: { dueDate: "asc" } }),
+    prisma.vehicle.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -12,7 +17,7 @@ export default async function DeadlinesPage() {
         <div>
           <h1 className="text-xl font-semibold text-brand-navy">Terminy ważności</h1>
           <p className="text-sm text-gray-500">
-            Przeglądy sprzętu i pojazdów oraz badania lekarskie druhów.
+            Sprzęt medyczny, ratowniczy, ODO i samochody — podzielone wg pojazdu, na którym jeżdżą.
           </p>
         </div>
         <Link
@@ -28,36 +33,47 @@ export default async function DeadlinesPage() {
           Brak zapisanych terminów. Dodaj pierwszy, żeby zacząć dostawać przypomnienia e-mail.
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {deadlines.map((d) => {
-            const urgency = urgencyOf(d.dueDate);
-            const style = urgencyStyles[urgency];
-            return (
-              <li
-                key={d.id}
-                className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="flex items-start gap-3">
-                  <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${style.dot}`} />
-                  <div>
-                    <p className="font-medium text-brand-navy">{d.label}</p>
-                    <p className="text-sm text-gray-500">
-                      {deadlineTypeLabels[d.type]} · {d.kind}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 pl-5 sm:pl-0">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${style.badge}`}>
-                    {style.label}
-                  </span>
-                  <span className="text-sm text-gray-600">
-                    {d.dueDate.toLocaleDateString("pl-PL")}
-                  </span>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        CATEGORY_ORDER.map((category) => {
+          const categoryItems = deadlines.filter((d) => d.category === category);
+          if (categoryItems.length === 0) return null;
+
+          return (
+            <section key={category} className="flex flex-col gap-3">
+              <h2 className="font-semibold text-brand-navy">{deadlineCategoryLabels[category]}</h2>
+              <div className="grid gap-4 sm:grid-cols-3">
+                {vehicles.map((vehicle) => {
+                  const items = categoryItems.filter((d) => d.vehicleId === vehicle.id);
+                  return (
+                    <div key={vehicle.id} className="rounded-xl border border-border bg-surface p-4">
+                      <p className="mb-2 text-sm font-semibold text-brand-navy">{vehicle.name}</p>
+                      {items.length === 0 ? (
+                        <p className="text-xs text-gray-400">Brak terminów</p>
+                      ) : (
+                        <ul className="flex flex-col gap-2">
+                          {items.map((d) => {
+                            const urgency = urgencyOf(d.dueDate);
+                            const style = urgencyStyles[urgency];
+                            return (
+                              <li key={d.id} className="flex items-start gap-2 text-sm">
+                                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${style.dot}`} />
+                                <div className="min-w-0">
+                                  <p className="truncate font-medium text-brand-navy">{d.label}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {d.kind} · {d.dueDate.toLocaleDateString("pl-PL")}
+                                  </p>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })
       )}
     </div>
   );

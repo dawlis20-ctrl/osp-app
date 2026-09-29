@@ -24,9 +24,11 @@ export const crewRoleLabels: Record<string, string> = {
   RATOWNIK: "Ratownik",
 };
 
-export const deadlineTypeLabels: Record<string, string> = {
-  EQUIPMENT: "Sprzęt / pojazd",
-  MEDICAL: "Badanie lekarskie",
+export const deadlineCategoryLabels: Record<string, string> = {
+  SPRZET_MEDYCZNY: "Sprzęt medyczny",
+  SPRZET_RATOWNICZY: "Sprzęt ratowniczy",
+  SPRZET_ODO: "Sprzęt ODO",
+  SAMOCHOD: "Samochód",
 };
 
 export const roleLabels: Record<string, string> = {

@@ -1,26 +1,36 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { deadlineCategoryLabels } from "@/lib/labels";
 
 async function createDeadline(formData: FormData) {
   "use server";
 
-  const type = formData.get("type") as "EQUIPMENT" | "MEDICAL";
-  const label = String(formData.get("label") ?? "").trim();
+  const category = formData.get("category") as
+    | "SPRZET_MEDYCZNY"
+    | "SPRZET_RATOWNICZY"
+    | "SPRZET_ODO"
+    | "SAMOCHOD";
+  const vehicleId = String(formData.get("vehicleId") ?? "");
   const kind = String(formData.get("kind") ?? "").trim();
   const dueDateRaw = String(formData.get("dueDate") ?? "");
   const reminderEmail = String(formData.get("reminderEmail") ?? "").trim();
-  const subjectUserId = String(formData.get("subjectUserId") ?? "") || null;
+  let label = String(formData.get("label") ?? "").trim();
 
-  if (!label || !kind || !dueDateRaw || !reminderEmail) return;
+  if (!vehicleId || !kind || !dueDateRaw || !reminderEmail) return;
+
+  if (!label) {
+    const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
+    label = vehicle?.name ?? "";
+  }
 
   await prisma.deadline.create({
     data: {
-      type,
+      category,
+      vehicleId,
       label,
       kind,
       dueDate: new Date(dueDateRaw),
       reminderEmail,
-      subjectUserId: type === "MEDICAL" ? subjectUserId : null,
     },
   });
 
@@ -28,7 +38,10 @@ async function createDeadline(formData: FormData) {
 }
 
 export default async function NewDeadlinePage() {
-  const users = await prisma.user.findMany({ orderBy: { name: "asc" } });
+  const vehicles = await prisma.vehicle.findMany({ where: { active: true }, orderBy: { name: "asc" } });
+
+  const inputClass =
+    "rounded-lg border border-border px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red";
 
   return (
     <div className="flex flex-col gap-6">
@@ -41,50 +54,50 @@ export default async function NewDeadlinePage() {
 
       <form action={createDeadline} className="flex max-w-xl flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <label htmlFor="type" className="text-sm font-medium text-gray-700">
-            Typ terminu
+          <label htmlFor="category" className="text-sm font-medium text-gray-700">
+            Kategoria
           </label>
           <select
-            id="type"
-            name="type"
+            id="category"
+            name="category"
             required
-            defaultValue="EQUIPMENT"
-            className="rounded-lg border border-border px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+            defaultValue="SPRZET_RATOWNICZY"
+            className={inputClass}
           >
-            <option value="EQUIPMENT">Sprzęt / pojazd</option>
-            <option value="MEDICAL">Badanie lekarskie druha</option>
+            {Object.entries(deadlineCategoryLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="vehicleId" className="text-sm font-medium text-gray-700">
+            Samochód <span className="text-gray-400">(na którym jeździ sprzęt)</span>
+          </label>
+          <select id="vehicleId" name="vehicleId" required className={inputClass} defaultValue="">
+            <option value="" disabled>
+              — wybierz —
+            </option>
+            {vehicles.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
+            ))}
           </select>
         </div>
 
         <div className="flex flex-col gap-1">
           <label htmlFor="label" className="text-sm font-medium text-gray-700">
-            Nazwa (sprzęt/pojazd albo imię i nazwisko druha)
+            Nazwa pozycji <span className="text-gray-400">(opcjonalnie dla kategorii Samochód)</span>
           </label>
           <input
             id="label"
             name="label"
-            required
-            placeholder="np. GBA 2,3/16 Mercedes-Benz"
-            className="rounded-lg border border-border px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+            placeholder="np. Torba R1, Aparat ODO nr 2, Nosze"
+            className={inputClass}
           />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label htmlFor="subjectUserId" className="text-sm font-medium text-gray-700">
-            Powiązany druh <span className="text-gray-400">(tylko dla badania lekarskiego)</span>
-          </label>
-          <select
-            id="subjectUserId"
-            name="subjectUserId"
-            className="rounded-lg border border-border px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
-          >
-            <option value="">— brak —</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
         </div>
 
         <div className="flex flex-col gap-1">
@@ -95,8 +108,8 @@ export default async function NewDeadlinePage() {
             id="kind"
             name="kind"
             required
-            placeholder="np. Przegląd techniczny, Badanie okresowe"
-            className="rounded-lg border border-border px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+            placeholder="np. Przegląd techniczny, Legalizacja, Badanie okresowe"
+            className={inputClass}
           />
         </div>
 
@@ -104,13 +117,7 @@ export default async function NewDeadlinePage() {
           <label htmlFor="dueDate" className="text-sm font-medium text-gray-700">
             Data ważności
           </label>
-          <input
-            id="dueDate"
-            name="dueDate"
-            type="date"
-            required
-            className="rounded-lg border border-border px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
-          />
+          <input id="dueDate" name="dueDate" type="date" required className={inputClass} />
         </div>
 
         <div className="flex flex-col gap-1">
@@ -123,7 +130,7 @@ export default async function NewDeadlinePage() {
             type="email"
             required
             defaultValue="naczelnik@osp.local"
-            className="rounded-lg border border-border px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+            className={inputClass}
           />
         </div>
 
