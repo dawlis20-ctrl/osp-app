@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { deadlineCategoryLabels } from "@/lib/labels";
+import { CategorySubgroupFields } from "@/components/CategorySubgroupFields";
 
 async function createDeadline(formData: FormData) {
   "use server";
@@ -57,34 +58,9 @@ export default async function NewDeadlinePage() {
       </div>
 
       <form action={createDeadline} className="flex max-w-xl flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="category" className="text-sm font-medium text-gray-700">
-            Kategoria
-          </label>
-          <select
-            id="category"
-            name="category"
-            required
-            defaultValue="SPRZET_RATOWNICZY"
-            className={inputClass}
-          >
-            {Object.entries(deadlineCategoryLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label htmlFor="subgroup" className="text-sm font-medium text-gray-700">
-            Podgrupa <span className="text-gray-400">(tylko dla sprzętu medycznego)</span>
-          </label>
-          <select id="subgroup" name="subgroup" defaultValue="" className={inputClass}>
-            <option value="">Pozostały sprzęt</option>
-            <option value="R1">R1</option>
-          </select>
-        </div>
+        <CategorySubgroupFields
+          categories={Object.entries(deadlineCategoryLabels).map(([value, label]) => ({ value, label }))}
+        />
 
         <div className="flex flex-col gap-1">
           <label htmlFor="vehicleId" className="text-sm font-medium text-gray-700">
