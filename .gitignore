@@ -45,3 +45,10 @@ next-env.d.ts
 # local SQLite database
 *.db
 *.db-journal
+
+# uploaded photos
+/data/
+!.env.example
+
+# generated test renders
+scripts/out-*.docx

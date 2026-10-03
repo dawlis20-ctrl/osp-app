@@ -78,36 +78,36 @@ repl(BLANK_LINE, "{celOpis}");
 keep(BLANK_LINE); // druga linia opisu celu zostaje pusta (rezerwa)
 
 // --- załoga wg pojazdu: Dowódca ---
-repl("1………………………… ", "1{crew_1_DOWODCA}");
-repl("1………………………… ", "1{crew_2_DOWODCA}");
-repl("1………………………… ", "1{crew_3_DOWODCA}");
+repl("1………………………… ", "1 {crew_1_DOWODCA}");
+repl("1………………………… ", "1 {crew_2_DOWODCA}");
+repl("1………………………… ", "1 {crew_3_DOWODCA}");
 
 // --- Kierowca ---
-repl("2………………………… ", "2{crew_1_KIEROWCA}");
-repl("2………………………… ", "2{crew_2_KIEROWCA}");
-repl("2………………………… ", "2{crew_3_KIEROWCA}");
+repl("2………………………… ", "2 {crew_1_KIEROWCA}");
+repl("2………………………… ", "2 {crew_2_KIEROWCA}");
+repl("2………………………… ", "2 {crew_3_KIEROWCA}");
 
 // --- Ratownik 1..4 (wszystkie 3 pojazdy) ---
-repl("3………………………… ", "3{crew_1_RATOWNIK_1}");
-repl("3………………………… ", "3{crew_2_RATOWNIK_1}");
-repl("3………………………… ", "3{crew_3_RATOWNIK_1}");
+repl("3………………………… ", "3 {crew_1_RATOWNIK_1}");
+repl("3………………………… ", "3 {crew_2_RATOWNIK_1}");
+repl("3………………………… ", "3 {crew_3_RATOWNIK_1}");
 
-repl("4………………………… ", "4{crew_1_RATOWNIK_2}");
-repl("4………………………… ", "4{crew_2_RATOWNIK_2}");
-repl("4………………………… ", "4{crew_3_RATOWNIK_2}");
+repl("4………………………… ", "4 {crew_1_RATOWNIK_2}");
+repl("4………………………… ", "4 {crew_2_RATOWNIK_2}");
+repl("4………………………… ", "4 {crew_3_RATOWNIK_2}");
 
-repl("5………………………… ", "5{crew_1_RATOWNIK_3}");
-repl("5………………………… ", "5{crew_2_RATOWNIK_3}");
-repl("5………………………… ", "5{crew_3_RATOWNIK_3}");
+repl("5………………………… ", "5 {crew_1_RATOWNIK_3}");
+repl("5………………………… ", "5 {crew_2_RATOWNIK_3}");
+repl("5………………………… ", "5 {crew_3_RATOWNIK_3}");
 
-repl("6………………………… ", "6{crew_1_RATOWNIK_4}");
-repl("6………………………… ", "6{crew_2_RATOWNIK_4}");
-repl("6………………………… ", "6{crew_3_RATOWNIK_4}");
+repl("6………………………… ", "6 {crew_1_RATOWNIK_4}");
+repl("6………………………… ", "6 {crew_2_RATOWNIK_4}");
+repl("6………………………… ", "6 {crew_3_RATOWNIK_4}");
 
 // --- Ratownik 5..7 (tylko pierwszy pojazd - GBA) ---
-repl("7………………………… ", "7{crew_1_RATOWNIK_5}");
-repl("8………………………… ", "8{crew_1_RATOWNIK_6}");
-repl("9………………………… ", "9{crew_1_RATOWNIK_7}");
+repl("7………………………… ", "7 {crew_1_RATOWNIK_5}");
+repl("8………………………… ", "8 {crew_1_RATOWNIK_6}");
+repl("9………………………… ", "9 {crew_1_RATOWNIK_7}");
 
 // --- praca sprzętu spalinowego (3 wiersze) ---
 repl(
@@ -126,15 +126,15 @@ repl(
 // --- inne jednostki (6 pozycji w 2 kolumnach) ---
 repl(
   "1………………………………………………    4……………………………………………………",
-  "1{otherUnit1}    4{otherUnit4}"
+  "1 {otherUnit1}    4 {otherUnit4}"
 );
 repl(
   "2………………………………………………    5……………………………………………………",
-  "2{otherUnit2}    5{otherUnit5}"
+  "2 {otherUnit2}    5 {otherUnit5}"
 );
 repl(
   "3………………………………………………    6……………………………………………………",
-  "3{otherUnit3}    6{otherUnit6}"
+  "3 {otherUnit3}    6 {otherUnit6}"
 );
 
 // --- KPP ---
@@ -157,6 +157,33 @@ repl(
   "…………………………….                                                                …………………………….",
   "{preparedByName}                                                                {checkedByName}"
 );
+
+// --- Praca sprzętu spalinowego: wyrównanie kolumn tabulatorami ---
+// W oryginale kolumny ustawiały kropki i spacje; po podstawieniu krótkiego tekstu
+// przesunęłyby się względem nagłówków. Tabulatory (te same pozycje w nagłówku i w wierszach,
+// zmierzone na renderze oryginału) trzymają kolumny dokładnie pod nagłówkami.
+const TAB_STOPS = '<w:tabs><w:tab w:val="left" w:pos="4560"/><w:tab w:val="left" w:pos="7280"/></w:tabs>';
+function tabbed(oldText, parts) {
+  const needle = '<w:t xml:space="preserve">' + oldText + '</w:t>';
+  const at = xml.indexOf(needle);
+  if (at === -1) throw new Error('tabbed: not found ' + JSON.stringify(oldText));
+  const runStart = xml.lastIndexOf('<w:r ', at);
+  const runEnd = xml.indexOf('</w:r>', at) + '</w:r>'.length;
+  const rPr = (xml.slice(runStart, runEnd).match(/<w:rPr>[\s\S]*?<\/w:rPr>/) || [""])[0];
+  const run = (inner) => '<w:r>' + rPr + inner + '</w:r>';
+  const newRuns = parts
+    .map((t, i) => (i === 0 ? '' : run('<w:tab/>')) + run('<w:t xml:space="preserve">' + t + '</w:t>'))
+    .join('');
+  const paraStart = xml.lastIndexOf('<w:p ', at);
+  const pBdrEnd = xml.indexOf('</w:pBdr>', paraStart);
+  if (pBdrEnd === -1 || pBdrEnd > at) throw new Error('tabbed: no pBdr in paragraph');
+  const before = xml.slice(0, pBdrEnd + '</w:pBdr>'.length) + TAB_STOPS + xml.slice(pBdrEnd + '</w:pBdr>'.length, runStart);
+  xml = before + newRuns + xml.slice(runEnd);
+}
+tabbed('rodzaj sprzętu                                                   czas pracy                             uwagi        ', ['rodzaj sprzętu', 'czas pracy', 'uwagi']);
+for (const i of [1, 2, 3]) {
+  tabbed('{equip' + i + 'Name}     {equip' + i + 'Time}    {equip' + i + 'Notes}', ['{equip' + i + 'Name}', '{equip' + i + 'Time}', '{equip' + i + 'Notes}']);
+}
 
 restoreKept();
 

@@ -49,7 +49,7 @@ doc.render({
   equip3Name: "",
   equip3Time: "",
   equip3Notes: "",
-  otherUnit1: " PSP Skawina",
+  otherUnit1: "PSP Skawina",
   otherUnit2: "",
   otherUnit3: "",
   otherUnit4: "",

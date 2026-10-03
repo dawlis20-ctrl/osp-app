@@ -1,9 +1,19 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { sendMeldunekEmail } from "@/app/actions/documents";
+import { SendEmailCard } from "@/components/SendEmailCard";
 
-export default async function MeldunekDetailPage({ params }: PageProps<"/meldunki/[id]">) {
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function MeldunekDetailPage({
+  params,
+  searchParams,
+}: PageProps<"/meldunki/[id]">) {
   const { id } = await params;
+  const query = await searchParams;
 
   const meldunek = await prisma.meldunek.findUnique({
     where: { id },
@@ -24,10 +34,16 @@ export default async function MeldunekDetailPage({ params }: PageProps<"/meldunk
             {meldunek.adresZdarzenia} · {meldunek.data.toLocaleDateString("pl-PL")}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          <a
+            href={`/meldunki/${meldunek.id}/pdf`}
+            className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark"
+          >
+            Pobierz PDF
+          </a>
           <a
             href={`/meldunki/${meldunek.id}/docx`}
-            className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark"
+            className="rounded-lg border border-brand-red px-4 py-2 text-sm font-semibold text-brand-red hover:bg-brand-red/5"
           >
             Pobierz DOCX
           </a>
@@ -128,6 +144,15 @@ export default async function MeldunekDetailPage({ params }: PageProps<"/meldunk
           <p className="text-sm text-gray-700">{meldunek.opisPrzebiegu}</p>
         </section>
       )}
+
+      <SendEmailCard
+        id={meldunek.id}
+        action={sendMeldunekEmail}
+        sentAt={meldunek.emailSentAt}
+        justSent={first(query.sent) === "1"}
+        error={first(query.mailError)}
+        what="Meldunek"
+      />
     </div>
   );
 }

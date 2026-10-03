@@ -94,6 +94,7 @@ async function createMeldunek(formData: FormData) {
       ofiaraSprzet: strOrNull(formData, "ofiaraSprzet"),
 
       straty: num(formData, "straty"),
+      stratyBudynki: num(formData, "stratyBudynki"),
       uratowano: num(formData, "uratowano"),
       powierzchnia: num(formData, "powierzchnia"),
       kubatura: num(formData, "kubatura"),
@@ -107,6 +108,11 @@ async function createMeldunek(formData: FormData) {
       kierujacyOd: strOrNull(formData, "kierujacyOd"),
       kierujacyDo: strOrNull(formData, "kierujacyDo"),
       kierujacyJednostka: strOrNull(formData, "kierujacyJednostka"),
+      kierujacy2Nazwisko: strOrNull(formData, "kierujacy2Nazwisko"),
+      kierujacy2Imie: strOrNull(formData, "kierujacy2Imie"),
+      kierujacy2Od: strOrNull(formData, "kierujacy2Od"),
+      kierujacy2Do: strOrNull(formData, "kierujacy2Do"),
+      kierujacy2Jednostka: strOrNull(formData, "kierujacy2Jednostka"),
 
       opisPrzebiegu: strOrNull(formData, "opisPrzebiegu"),
       przekazanieMiejsca: strOrNull(formData, "przekazanieMiejsca"),
@@ -319,8 +325,12 @@ export default function NewMeldunekPage() {
           <summary className="cursor-pointer font-semibold text-brand-navy">Wielkość zdarzenia</summary>
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
             <div className="flex flex-col gap-1">
-              <label className={labelClass}>Szacowane straty [tys. zł]</label>
+              <label className={labelClass}>Szacowane straty ogółem [tys. zł]</label>
               <input name="straty" inputMode="decimal" className={inputClass} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelClass}>w tym budynki [tys. zł]</label>
+              <input name="stratyBudynki" inputMode="decimal" className={inputClass} />
             </div>
             <div className="flex flex-col gap-1">
               <label className={labelClass}>Uratowano [tys. zł]</label>
@@ -353,27 +363,22 @@ export default function NewMeldunekPage() {
           <summary className="cursor-pointer font-semibold text-brand-navy">
             Kierujący działaniem ratowniczym i warunki atmosferyczne
           </summary>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <label className={labelClass}>Nazwisko</label>
-              <input name="kierujacyNazwisko" className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelClass}>Imię</label>
-              <input name="kierujacyImie" className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelClass}>Od (godzina, data)</label>
-              <input name="kierujacyOd" className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelClass}>Do (godzina, data)</label>
-              <input name="kierujacyDo" className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelClass}>Jednostka</label>
-              <input name="kierujacyJednostka" className={inputClass} />
-            </div>
+          <div className="mt-4 flex flex-col gap-5">
+            {[
+              { title: "Kierujący 1", prefix: "kierujacy" },
+              { title: "Kierujący 2 (jeśli była zmiana)", prefix: "kierujacy2" },
+            ].map(({ title, prefix }) => (
+              <div key={prefix} className="flex flex-col gap-2">
+                <p className="text-sm font-semibold text-gray-600">{title}</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input name={`${prefix}Nazwisko`} placeholder="Nazwisko" className={inputClass} />
+                  <input name={`${prefix}Imie`} placeholder="Imię" className={inputClass} />
+                  <input name={`${prefix}Od`} placeholder="Od (godzina, data)" className={inputClass} />
+                  <input name={`${prefix}Do`} placeholder="Do (godzina, data)" className={inputClass} />
+                  <input name={`${prefix}Jednostka`} placeholder="Jednostka" className={inputClass} />
+                </div>
+              </div>
+            ))}
             <div className="flex flex-col gap-1">
               <label className={labelClass}>Warunki atmosferyczne</label>
               <input name="warunkiAtmosferyczne" className={inputClass} />

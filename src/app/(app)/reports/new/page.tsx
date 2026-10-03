@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { reportTypeLabels, reportPurposeLabels } from "@/lib/labels";
+import { PhotoPicker } from "@/components/PhotoPicker";
+import { isReportNumberTaken, suggestReportNumber } from "@/lib/report-number";
+import { MAX_CONFIRMATION_PHOTOS, MAX_OTHER_PHOTOS, saveReportPhoto } from "@/lib/photos";
 
 const RATOWNIK_SLOTS = 4;
 const RATOWNIK_EXTRA_SLOTS = 3; // tylko dla pierwszego pojazdu (GBA), pozycje 5-7 wg wzoru
@@ -13,13 +16,15 @@ async function createReport(formData: FormData) {
 
   const vehicles = await prisma.vehicle.findMany({ where: { active: true } });
 
-  const year = new Date().getFullYear();
-  const yearStart = new Date(`${year}-01-01T00:00:00.000Z`);
-  const yearEnd = new Date(`${year + 1}-01-01T00:00:00.000Z`);
-  const countThisYear = await prisma.report.count({
-    where: { createdAt: { gte: yearStart, lt: yearEnd } },
-  });
-  const number = `${countThisYear + 1}/${year}`;
+  // The number is editable in the form; if it is empty or already taken we fall back to the
+  // next free one (rather than throwing away a whole filled-in report) and say so afterwards.
+  const wantedNumber = String(formData.get("number") ?? "").trim();
+  let number = wantedNumber;
+  let numberChangedFrom: string | null = null;
+  if (!number || (await isReportNumberTaken(number))) {
+    numberChangedFrom = number || null;
+    number = await suggestReportNumber();
+  }
 
   const crewData: {
     vehicleId: string;
@@ -81,14 +86,40 @@ async function createReport(formData: FormData) {
     },
   });
 
-  redirect(`/reports/${report.id}`);
+  const uploads = [
+    { kind: "POTWIERDZENIE" as const, field: "confirmationPhotos", max: MAX_CONFIRMATION_PHOTOS },
+    { kind: "INNE" as const, field: "otherPhotos", max: MAX_OTHER_PHOTOS },
+  ];
+  let photosFailed = false;
+  for (const { kind, field, max } of uploads) {
+    const files = formData
+      .getAll(field)
+      .filter((f): f is File => f instanceof File && f.size > 0)
+      .slice(0, max);
+    for (const [position, file] of files.entries()) {
+      try {
+        const path = await saveReportPhoto(report.id, file);
+        await prisma.reportPhoto.create({ data: { reportId: report.id, kind, position, path } });
+      } catch (error) {
+        console.error("Zapis zdjęcia nie powiódł się:", error);
+        photosFailed = true;
+      }
+    }
+  }
+
+  const notices = new URLSearchParams();
+  if (numberChangedFrom !== null) notices.set("numberTaken", numberChangedFrom);
+  if (photosFailed) notices.set("photosFailed", "1");
+  const query = notices.toString();
+  redirect(`/reports/${report.id}${query ? `?${query}` : ""}`);
 }
 
 export default async function NewReportPage() {
   const session = await auth();
-  const [vehicles, users] = await Promise.all([
+  const [vehicles, users, suggestedNumber] = await Promise.all([
     prisma.vehicle.findMany({ where: { active: true } }),
     prisma.user.findMany({ orderBy: { name: "asc" } }),
+    suggestReportNumber(),
   ]);
 
   const inputClass =
@@ -108,6 +139,12 @@ export default async function NewReportPage() {
         <details open className="rounded-xl border border-border bg-surface p-4">
           <summary className="cursor-pointer font-semibold text-brand-navy">Dane podstawowe</summary>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <label className={labelClass}>
+                Numer raportu <span className="text-gray-400">(możesz zmienić)</span>
+              </label>
+              <input name="number" defaultValue={suggestedNumber} className={inputClass} />
+            </div>
             <div className="flex flex-col gap-1">
               <label className={labelClass}>Rodzaj wyjazdu</label>
               <select name="type" required defaultValue="AKCJA_RATOWNICZO_GASNICZA" className={inputClass}>
@@ -302,6 +339,24 @@ export default async function NewReportPage() {
                 ))}
               </select>
             </div>
+          </div>
+        </details>
+
+        <details open className="rounded-xl border border-border bg-surface p-4">
+          <summary className="cursor-pointer font-semibold text-brand-navy">Zdjęcia</summary>
+          <div className="mt-4 flex flex-col gap-6">
+            <PhotoPicker
+              name="confirmationPhotos"
+              max={MAX_CONFIRMATION_PHOTOS}
+              title="Potwierdzenie udziału w działaniach"
+              hint={`Zdjęcie listy obecności / potwierdzenia (maks. ${MAX_CONFIRMATION_PHOTOS}).`}
+            />
+            <PhotoPicker
+              name="otherPhotos"
+              max={MAX_OTHER_PHOTOS}
+              title="Pozostałe zdjęcia"
+              hint={`Np. powalone drzewa, uszkodzenia (maks. ${MAX_OTHER_PHOTOS}).`}
+            />
           </div>
         </details>
 

@@ -2,9 +2,22 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { reportTypeLabels, reportPurposeLabels, crewRoleLabels } from "@/lib/labels";
+import { renameReport, sendReportEmail } from "@/app/actions/documents";
+import { SendEmailCard } from "@/components/SendEmailCard";
 
-export default async function ReportDetailPage({ params }: PageProps<"/reports/[id]">) {
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function ReportDetailPage({
+  params,
+  searchParams,
+}: PageProps<"/reports/[id]">) {
   const { id } = await params;
+  const query = await searchParams;
+  const numberTaken = first(query.numberTaken);
+  const numberError = first(query.numberError);
+  const mailError = first(query.mailError);
 
   const report = await prisma.report.findUnique({
     where: { id },
@@ -14,6 +27,7 @@ export default async function ReportDetailPage({ params }: PageProps<"/reports/[
       otherUnits: true,
       preparedBy: true,
       checkedBy: true,
+      photos: { orderBy: [{ kind: "asc" }, { position: "asc" }] },
     },
   });
 
@@ -35,10 +49,16 @@ export default async function ReportDetailPage({ params }: PageProps<"/reports/[
             {reportTypeLabels[report.type]} · {report.date.toLocaleDateString("pl-PL")}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          <a
+            href={`/reports/${report.id}/pdf`}
+            className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark"
+          >
+            Pobierz PDF
+          </a>
           <a
             href={`/reports/${report.id}/docx`}
-            className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark"
+            className="rounded-lg border border-brand-red px-4 py-2 text-sm font-semibold text-brand-red hover:bg-brand-red/5"
           >
             Pobierz DOCX
           </a>
@@ -50,6 +70,50 @@ export default async function ReportDetailPage({ params }: PageProps<"/reports/[
           </Link>
         </div>
       </div>
+
+      {numberTaken !== undefined && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Numer „{numberTaken}” był już zajęty — raport dostał kolejny wolny numer {report.number}. Możesz go
+          zmienić poniżej.
+        </p>
+      )}
+      {first(query.photosFailed) && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Nie wszystkie zdjęcia udało się zapisać — sprawdź poniżej, których brakuje.
+        </p>
+      )}
+      {first(query.numberChanged) && (
+        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Zmieniono numer raportu.</p>
+      )}
+      {numberError && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {numberError === "taken" ? "Taki numer raportu już istnieje." : "Numer raportu nie może być pusty."}
+        </p>
+      )}
+
+      <form
+        action={renameReport}
+        className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface p-4"
+      >
+        <input type="hidden" name="id" value={report.id} />
+        <div className="flex flex-col gap-1">
+          <label htmlFor="number" className="text-sm font-medium text-gray-700">
+            Numer raportu
+          </label>
+          <input
+            id="number"
+            name="number"
+            defaultValue={report.number}
+            className="rounded-lg border border-border px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+          />
+        </div>
+        <button
+          type="submit"
+          className="rounded-lg border border-brand-navy px-4 py-2 text-sm font-semibold text-brand-navy hover:bg-brand-navy/5"
+        >
+          Zmień numer
+        </button>
+      </form>
 
       <section className="rounded-xl border border-border bg-surface p-4">
         <h2 className="mb-3 font-semibold text-brand-navy">Dane podstawowe</h2>
@@ -160,6 +224,46 @@ export default async function ReportDetailPage({ params }: PageProps<"/reports/[
         <p>Raport sporządził: {report.preparedBy?.name ?? "—"}</p>
         <p>Raport sprawdził: {report.checkedBy?.name ?? "—"}</p>
       </section>
+
+      {report.photos.length > 0 && (
+        <section className="rounded-xl border border-border bg-surface p-4">
+          <h2 className="mb-3 font-semibold text-brand-navy">Zdjęcia</h2>
+          {(["POTWIERDZENIE", "INNE"] as const).map((kind) => {
+            const list = report.photos.filter((p) => p.kind === kind);
+            if (list.length === 0) return null;
+            return (
+              <div key={kind} className="mb-3 last:mb-0">
+                <p className="mb-2 text-sm text-gray-500">
+                  {kind === "POTWIERDZENIE" ? "Potwierdzenie udziału w działaniach" : "Pozostałe zdjęcia"}
+                </p>
+                <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                  {list.map((p) => (
+                    <li key={p.id}>
+                      <a href={`/reports/${report.id}/photos/${p.id}`} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`/reports/${report.id}/photos/${p.id}`}
+                          alt="Zdjęcie z raportu"
+                          className="aspect-square w-full rounded-lg border border-border object-cover"
+                        />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      <SendEmailCard
+        id={report.id}
+        action={sendReportEmail}
+        sentAt={report.emailSentAt}
+        justSent={first(query.sent) === "1"}
+        error={mailError}
+        what="Raport razem ze zdjęciami"
+      />
     </div>
   );
 }

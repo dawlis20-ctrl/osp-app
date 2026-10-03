@@ -75,11 +75,28 @@ model Report {
   checkedById  String?
   checkedBy    User?   @relation("ReportsChecked", fields: [checkedById], references: [id])
 
-  createdAt DateTime @default(now())
+  createdAt   DateTime  @default(now())
+  emailSentAt DateTime?
 
   crew       ReportCrewEntry[]
   equipment  EquipmentUsage[]
   otherUnits OtherUnit[]
+  photos     ReportPhoto[]
+}
+
+enum PhotoKind {
+  POTWIERDZENIE
+  INNE
+}
+
+model ReportPhoto {
+  id        String    @id @default(cuid())
+  reportId  String
+  report    Report    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  kind      PhotoKind
+  position  Int
+  path      String
+  createdAt DateTime  @default(now())
 }
 
 enum CrewRole {
@@ -162,7 +179,8 @@ model Meldunek {
   ofiaraDzialania    String?
   ofiaraSprzet       String?
 
-  straty       Float?
+  straty         Float?
+  stratyBudynki  Float?
   uratowano    Float?
   powierzchnia Float?
   kubatura     Float?
@@ -176,6 +194,11 @@ model Meldunek {
   kierujacyOd          String?
   kierujacyDo          String?
   kierujacyJednostka   String?
+  kierujacy2Nazwisko   String?
+  kierujacy2Imie       String?
+  kierujacy2Od         String?
+  kierujacy2Do         String?
+  kierujacy2Jednostka  String?
 
   opisPrzebiegu      String?
   przekazanieMiejsca String?
@@ -185,8 +208,9 @@ model Meldunek {
   zglaszajacy    String?
 
   createdById String?
-  createdBy   User?    @relation(fields: [createdById], references: [id])
-  createdAt   DateTime @default(now())
+  createdBy   User?     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  emailSentAt DateTime?
 
   jednostki   MeldunekUnit[]
   inneSluzby  MeldunekOtherService[]
