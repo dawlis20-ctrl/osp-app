@@ -15,6 +15,7 @@ async function createDeadline(formData: FormData) {
   const dueDateRaw = String(formData.get("dueDate") ?? "");
   const reminderEmail = String(formData.get("reminderEmail") ?? "").trim();
   const serialNumber = String(formData.get("serialNumber") ?? "").trim();
+  const subgroupRaw = String(formData.get("subgroup") ?? "");
   let label = String(formData.get("label") ?? "").trim();
 
   if (!vehicleId || !kind || !dueDateRaw || !reminderEmail) return;
@@ -30,6 +31,7 @@ async function createDeadline(formData: FormData) {
       vehicleId,
       label,
       serialNumber: serialNumber || null,
+      subgroup: category === "SPRZET_MEDYCZNY" && subgroupRaw === "R1" ? "R1" : null,
       kind,
       dueDate: new Date(dueDateRaw),
       reminderEmail,
@@ -71,6 +73,16 @@ export default async function NewDeadlinePage() {
                 {label}
               </option>
             ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="subgroup" className="text-sm font-medium text-gray-700">
+            Podgrupa <span className="text-gray-400">(tylko dla sprzętu medycznego)</span>
+          </label>
+          <select id="subgroup" name="subgroup" defaultValue="" className={inputClass}>
+            <option value="">Pozostały sprzęt</option>
+            <option value="R1">R1</option>
           </select>
         </div>
 

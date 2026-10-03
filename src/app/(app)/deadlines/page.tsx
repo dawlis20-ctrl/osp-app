@@ -187,8 +187,36 @@ export default async function DeadlinesPage() {
                         </span>
                       </summary>
                       <div className="border-t border-border px-3">
-                        {items.length === 0 ? (
+                        {items.length === 0 && category !== "SPRZET_MEDYCZNY" ? (
                           <p className="py-3 text-xs text-gray-400">Brak terminów</p>
+                        ) : category === "SPRZET_MEDYCZNY" ? (
+                          <div className="flex flex-col gap-3 py-3">
+                            {[
+                              { title: "R1", list: items.filter((d) => d.subgroup === "R1") },
+                              { title: "Pozostały sprzęt", list: items.filter((d) => d.subgroup !== "R1") },
+                            ].map(({ title, list }) => (
+                              <div key={title}>
+                                <div className="flex items-center justify-between">
+                                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    {title}
+                                  </h3>
+                                  <div className="flex items-center gap-2">
+                                    <AttentionBadge items={list} />
+                                    <span className="text-xs text-gray-400">{list.length} poz.</span>
+                                  </div>
+                                </div>
+                                {list.length === 0 ? (
+                                  <p className="py-2 text-xs text-gray-400">Brak terminów</p>
+                                ) : (
+                                  <ul className="divide-y divide-border">
+                                    {list.map((d) => (
+                                      <ItemRow key={d.id} item={d} />
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         ) : (
                           <ul className="divide-y divide-border">
                             {items.map((d) => (
