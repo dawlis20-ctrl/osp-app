@@ -22,12 +22,11 @@ Zaloguj się na <https://www.ovh.com/manager/> i sprawdź listę usług.
 
 - **Jest pozycja „VPS”** (np. `vps-xxxxxxxx.vps.ovh.net`) → masz serwer, przejdź do kroku 1.
 - **Jest tylko „Hosting” / „Hébergement web”** (strona WWW, PHP, FTP, bazy MySQL) → to **nie
-  wystarczy**. Zwykły hosting WWW nie uruchomi tej aplikacji (potrzebuje własnego serwera
-  z Node.js i LibreOffice). Zostaw go tak, jak jest (może na nim stać Twoja obecna strona), a
-  **dokup najtańszy VPS**:
+  wystarczy**. Zwykły hosting WWW (PHP) nie uruchomi aplikacji Node.js. Zostaw go tak, jak jest
+  (może na nim stać Twoja obecna strona), a **dokup najtańszy VPS**:
   - system: **Ubuntu 24.04**,
-  - pamięć: **co najmniej 2 GB RAM** (LibreOffice do PDF-ów jest zasobożerny; przy 1 GB jest za
-    ciasno),
+  - pamięć: **1 GB RAM wystarczy** (aplikacja nie generuje PDF-ów, jest lekka; przy 1 GB dodaj
+    pamięć wymiany — krok 2),
   - lokalizacja: dowolna w Europie.
   Aktualne ceny i nazwy planów sprawdź w ofercie OVH — zmieniają się.
 
@@ -89,8 +88,7 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ## 3. Instalacja potrzebnych programów
 
 ```bash
-sudo apt -y install nginx git sqlite3 curl ca-certificates certbot python3-certbot-nginx \
-  libreoffice-writer fonts-liberation fonts-noto-core
+sudo apt -y install nginx git sqlite3 curl ca-certificates certbot python3-certbot-nginx
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt -y install nodejs
 node --version      # ma pokazać v22.x
@@ -100,7 +98,7 @@ Osobny użytkownik, na którym działa aplikacja (bezpieczniej niż root):
 
 ```bash
 sudo adduser --disabled-password --gecos "" osp
-sudo mkdir -p /home/osp/data/uploads /home/osp/backups && sudo chown -R osp:osp /home/osp
+sudo mkdir -p /home/osp/data /home/osp/backups && sudo chown -R osp:osp /home/osp
 ```
 
 ---
@@ -141,7 +139,6 @@ Uzupełnij (strzałkami przesuwasz kursor; zapis: `Ctrl+O`, `Enter`; wyjście: `
 | `AUTH_SECRET` | wygeneruj: `openssl rand -base64 32` i wklej wynik |
 | `AUTH_URL` | `"https://app.r-osp.pl"` |
 | `AUTH_TRUST_HOST` | `"true"` |
-| `UPLOADS_DIR` | `"/home/osp/data/uploads"` |
 | `SMTP_HOST` | serwer poczty OVH — patrz niżej |
 | `SMTP_PORT` | `"465"` |
 | `SMTP_USER` | pełny adres skrzynki, np. `biuro@r-osp.pl` |
@@ -220,7 +217,7 @@ Wklej:
 server {
     listen 80;
     server_name app.r-osp.pl;
-    client_max_body_size 25m;   # zdjęcia z raportów
+    client_max_body_size 40m;   # zdjęcia dołączane do raportów
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -228,7 +225,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 120s;  # generowanie PDF chwilę trwa
+        proxy_read_timeout 120s;  # wysyłka maila ze zdjęciami chwilę trwa
     }
 }
 ```
@@ -250,15 +247,18 @@ Gotowe: otwórz **https://app.r-osp.pl** i zaloguj się kontem z kroku 4.
 
 1. Zaloguj się jako administrator → **Mój profil → Zmiana hasła** (ustaw własne).
 2. **Ustawienia → Dodaj konto** — załóż konta druhom i naczelnikowi.
-3. Dodaj testowy raport ze zdjęciem → **Pobierz PDF** (pierwsze generowanie trwa kilkanaście sekund).
-4. Kliknij **Wyślij na e-mail OSP** i sprawdź skrzynkę. Jeśli wyskoczy błąd — patrz „Problemy”.
-5. Usuń testowy raport (lub zostaw — w razie potrzeby numerację można zmienić na ekranie raportu).
+3. Wypełnij testowy **Raport z akcji** (dodaj zdjęcie) i kliknij **Wyślij**.
+4. Sprawdź skrzynkę: ma przyjść e-mail z raportem w **.docx** oraz zdjęciami jako osobnymi
+   załącznikami. Jeśli wyskoczy błąd — patrz „Problemy” (wpisane dane zostają na ekranie).
+5. Numer następnego raportu aplikacja podpowiada sama (zawsze można go zmienić w polu na górze
+   formularza). **Raporty i meldunki nie są zapisywane w aplikacji — jedyną kopią jest e-mail.**
 
 ---
 
 ## 8. Kopie zapasowe (ważne!)
 
-Wszystkie dane to jeden plik bazy i katalog zdjęć. Skrypt robi codzienną kopię na 14 dni:
+Dane w aplikacji to jeden plik bazy (konta, terminy ważności, licznik numerów raportów).
+Raporty i zdjęcia są tylko w poczcie. Skrypt robi codzienną kopię bazy na 14 dni:
 
 ```bash
 sudo -iu osp
@@ -271,7 +271,6 @@ set -e
 D=/home/osp/backups/$(date +%F)
 mkdir -p "$D"
 sqlite3 /home/osp/data/osp.db ".backup '$D/osp.db'"
-cp -r /home/osp/data/uploads "$D/"
 find /home/osp/backups -maxdepth 1 -type d -mtime +14 -exec rm -rf {} +
 ```
 
@@ -308,9 +307,8 @@ sudo systemctl restart osp
 | Objaw | Co sprawdzić |
 |---|---|
 | Strona się nie otwiera | `sudo systemctl status osp` oraz `sudo journalctl -u osp -n 50`; czy DNS już wskazuje na IP (`nslookup app.r-osp.pl`) |
-| „Nie udało się wygenerować PDF” | `which soffice` (ma pokazać ścieżkę); jeśli pusto: `sudo apt -y install libreoffice-writer` |
 | „Nie wysłano: …” przy wysyłce | zły `SMTP_HOST`/hasło w `.env` (po zmianie: `sudo systemctl restart osp`); sprawdź te dane w panelu OVH przy skrzynce |
-| Błąd przy wgrywaniu zdjęć | w nginx musi być `client_max_body_size 25m;` (krok 6) |
+| Błąd przy wysyłaniu zdjęć | w nginx musi być `client_max_body_size 40m;` (krok 6); wiadomość nie może przekroczyć 15 MB — zmniejsz liczbę zdjęć |
 | Po zmianie `.env` nic się nie dzieje | `sudo systemctl restart osp` |
 | Zapomniane hasło administratora | wejdź na serwer, dopisz do `.env` `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` **innego** adresu, `npm run db:seed`, zaloguj się nowym kontem i usuń te linie |
 

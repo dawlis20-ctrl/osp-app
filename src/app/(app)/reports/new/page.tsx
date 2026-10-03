@@ -1,123 +1,22 @@
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { reportTypeLabels, reportPurposeLabels } from "@/lib/labels";
 import { PhotoPicker } from "@/components/PhotoPicker";
-import { isReportNumberTaken, suggestReportNumber } from "@/lib/report-number";
-import { MAX_CONFIRMATION_PHOTOS, MAX_OTHER_PHOTOS, saveReportPhoto } from "@/lib/photos";
-
-const RATOWNIK_SLOTS = 4;
-const RATOWNIK_EXTRA_SLOTS = 3; // tylko dla pierwszego pojazdu (GBA), pozycje 5-7 wg wzoru
-const EQUIPMENT_SLOTS = 3;
-const OTHER_UNIT_SLOTS = 6;
-
-async function createReport(formData: FormData) {
-  "use server";
-
-  const vehicles = await prisma.vehicle.findMany({ where: { active: true } });
-
-  // The number is editable in the form; if it is empty or already taken we fall back to the
-  // next free one (rather than throwing away a whole filled-in report) and say so afterwards.
-  const wantedNumber = String(formData.get("number") ?? "").trim();
-  let number = wantedNumber;
-  let numberChangedFrom: string | null = null;
-  if (!number || (await isReportNumberTaken(number))) {
-    numberChangedFrom = number || null;
-    number = await suggestReportNumber();
-  }
-
-  const crewData: {
-    vehicleId: string;
-    role: "DOWODCA" | "KIEROWCA" | "RATOWNIK";
-    position: number;
-    memberId: string;
-  }[] = [];
-
-  vehicles.forEach((vehicle, vehicleIndex) => {
-    const dowodca = String(formData.get(`crew_${vehicle.id}_DOWODCA_1`) ?? "");
-    if (dowodca) crewData.push({ vehicleId: vehicle.id, role: "DOWODCA", position: 1, memberId: dowodca });
-
-    const kierowca = String(formData.get(`crew_${vehicle.id}_KIEROWCA_1`) ?? "");
-    if (kierowca) crewData.push({ vehicleId: vehicle.id, role: "KIEROWCA", position: 1, memberId: kierowca });
-
-    const ratownikSlots = vehicleIndex === 0 ? RATOWNIK_SLOTS + RATOWNIK_EXTRA_SLOTS : RATOWNIK_SLOTS;
-    for (let i = 1; i <= ratownikSlots; i++) {
-      const ratownik = String(formData.get(`crew_${vehicle.id}_RATOWNIK_${i}`) ?? "");
-      if (ratownik) crewData.push({ vehicleId: vehicle.id, role: "RATOWNIK", position: i, memberId: ratownik });
-    }
-  });
-
-  const equipmentData: { name: string; workTime: string; notes: string | null }[] = [];
-  for (let i = 1; i <= EQUIPMENT_SLOTS; i++) {
-    const name = String(formData.get(`equipment_name_${i}`) ?? "").trim();
-    if (!name) continue;
-    const workTime = String(formData.get(`equipment_time_${i}`) ?? "").trim();
-    const notes = String(formData.get(`equipment_notes_${i}`) ?? "").trim();
-    equipmentData.push({ name, workTime, notes: notes || null });
-  }
-
-  const otherUnitsData: { name: string }[] = [];
-  for (let i = 1; i <= OTHER_UNIT_SLOTS; i++) {
-    const name = String(formData.get(`otherUnit_${i}`) ?? "").trim();
-    if (name) otherUnitsData.push({ name });
-  }
-
-  const report = await prisma.report.create({
-    data: {
-      number,
-      type: formData.get("type") as never,
-      date: new Date(String(formData.get("date"))),
-      alarmTime: String(formData.get("alarmTime") ?? ""),
-      arrivalTime: String(formData.get("arrivalTime") ?? ""),
-      departureTime: String(formData.get("departureTime") ?? ""),
-      returnTime: String(formData.get("returnTime") ?? ""),
-      alarmedBy: String(formData.get("alarmedBy") ?? ""),
-      address: String(formData.get("address") ?? ""),
-      purpose: formData.get("purpose") as never,
-      purposeDescription: String(formData.get("purposeDescription") ?? "") || null,
-      kpp: String(formData.get("kpp") ?? "") || null,
-      handover: String(formData.get("handover") ?? "") || null,
-      notes: String(formData.get("notes") ?? "") || null,
-      preparedById: String(formData.get("preparedById") ?? "") || null,
-      checkedById: String(formData.get("checkedById") ?? "") || null,
-      crew: { create: crewData },
-      equipment: { create: equipmentData },
-      otherUnits: { create: otherUnitsData },
-    },
-  });
-
-  const uploads = [
-    { kind: "POTWIERDZENIE" as const, field: "confirmationPhotos", max: MAX_CONFIRMATION_PHOTOS },
-    { kind: "INNE" as const, field: "otherPhotos", max: MAX_OTHER_PHOTOS },
-  ];
-  let photosFailed = false;
-  for (const { kind, field, max } of uploads) {
-    const files = formData
-      .getAll(field)
-      .filter((f): f is File => f instanceof File && f.size > 0)
-      .slice(0, max);
-    for (const [position, file] of files.entries()) {
-      try {
-        const path = await saveReportPhoto(report.id, file);
-        await prisma.reportPhoto.create({ data: { reportId: report.id, kind, position, path } });
-      } catch (error) {
-        console.error("Zapis zdjęcia nie powiódł się:", error);
-        photosFailed = true;
-      }
-    }
-  }
-
-  const notices = new URLSearchParams();
-  if (numberChangedFrom !== null) notices.set("numberTaken", numberChangedFrom);
-  if (photosFailed) notices.set("photosFailed", "1");
-  const query = notices.toString();
-  redirect(`/reports/${report.id}${query ? `?${query}` : ""}`);
-}
+import { SendForm } from "@/components/SendForm";
+import { suggestReportNumber } from "@/lib/report-number";
+import {
+  EQUIPMENT_SLOTS,
+  MAX_CONFIRMATION_PHOTOS,
+  MAX_OTHER_PHOTOS,
+  OTHER_UNIT_SLOTS,
+  RATOWNIK_EXTRA_SLOTS,
+  RATOWNIK_SLOTS,
+} from "@/lib/report-form";
 
 export default async function NewReportPage() {
   const session = await auth();
   const [vehicles, users, suggestedNumber] = await Promise.all([
-    prisma.vehicle.findMany({ where: { active: true } }),
+    prisma.vehicle.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     prisma.user.findMany({ orderBy: { name: "asc" } }),
     suggestReportNumber(),
   ]);
@@ -129,13 +28,13 @@ export default async function NewReportPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-brand-navy">Nowy raport z akcji</h1>
+        <h1 className="text-xl font-semibold text-brand-navy">Raport z akcji</h1>
         <p className="text-sm text-gray-500">
-          Formularz odwzorowuje układ papierowego wzoru — po zapisaniu wygenerujesz gotowy PDF.
+          Wypełnij formularz i wyślij — raport (Word) razem ze zdjęciami trafi na e-mail OSP. Nic nie jest zapisywane w aplikacji.
         </p>
       </div>
 
-      <form action={createReport} className="flex flex-col gap-4">
+      <SendForm endpoint="/api/send/report" submitLabel="Wyślij raport na e-mail OSP" doneTitle="Raport wysłany na e-mail OSP">
         <details open className="rounded-xl border border-border bg-surface p-4">
           <summary className="cursor-pointer font-semibold text-brand-navy">Dane podstawowe</summary>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -222,7 +121,7 @@ export default async function NewReportPage() {
                       <select name={`crew_${vehicle.id}_DOWODCA_1`} className={inputClass} defaultValue="">
                         <option value="">—</option>
                         {users.map((u) => (
-                          <option key={u.id} value={u.id}>
+                          <option key={u.id} value={u.name}>
                             {u.name}
                           </option>
                         ))}
@@ -233,7 +132,7 @@ export default async function NewReportPage() {
                       <select name={`crew_${vehicle.id}_KIEROWCA_1`} className={inputClass} defaultValue="">
                         <option value="">—</option>
                         {users.map((u) => (
-                          <option key={u.id} value={u.id}>
+                          <option key={u.id} value={u.name}>
                             {u.name}
                           </option>
                         ))}
@@ -245,7 +144,7 @@ export default async function NewReportPage() {
                         <select name={`crew_${vehicle.id}_RATOWNIK_${i}`} className={inputClass} defaultValue="">
                           <option value="">—</option>
                           {users.map((u) => (
-                            <option key={u.id} value={u.id}>
+                            <option key={u.id} value={u.name}>
                               {u.name}
                             </option>
                           ))}
@@ -316,13 +215,13 @@ export default async function NewReportPage() {
             <div className="flex flex-col gap-1">
               <label className={labelClass}>Raport sporządził (dowódca)</label>
               <select
-                name="preparedById"
+                name="preparedBy"
                 className={inputClass}
-                defaultValue={session?.user?.id ?? ""}
+                defaultValue={session?.user?.name ?? ""}
               >
                 <option value="">—</option>
                 {users.map((u) => (
-                  <option key={u.id} value={u.id}>
+                  <option key={u.id} value={u.name}>
                     {u.name}
                   </option>
                 ))}
@@ -330,10 +229,10 @@ export default async function NewReportPage() {
             </div>
             <div className="flex flex-col gap-1">
               <label className={labelClass}>Raport sprawdził (naczelnik)</label>
-              <select name="checkedById" className={inputClass} defaultValue="">
+              <select name="checkedBy" className={inputClass} defaultValue="">
                 <option value="">—</option>
                 {users.map((u) => (
-                  <option key={u.id} value={u.id}>
+                  <option key={u.id} value={u.name}>
                     {u.name}
                   </option>
                 ))}
@@ -360,15 +259,7 @@ export default async function NewReportPage() {
           </div>
         </details>
 
-        <div className="flex gap-3">
-          <button
-            type="submit"
-            className="rounded-lg bg-brand-red px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-red-dark"
-          >
-            Zapisz raport
-          </button>
-        </div>
-      </form>
+</SendForm>
     </div>
   );
 }

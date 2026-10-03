@@ -1,133 +1,5 @@
-import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-
-const JEDNOSTKA_SLOTS = 4;
-const SLUZBA_SLOTS = 3;
-
-function num(formData: FormData, key: string): number | null {
-  const raw = String(formData.get(key) ?? "").trim().replace(",", ".");
-  if (!raw) return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
-}
-
-function str(formData: FormData, key: string): string {
-  return String(formData.get(key) ?? "").trim();
-}
-
-function strOrNull(formData: FormData, key: string): string | null {
-  const v = str(formData, key);
-  return v || null;
-}
-
-async function createMeldunek(formData: FormData) {
-  "use server";
-
-  const jednostki: { position: number; jednostka: string; samochod: string | null; liczbaOsob: string | null }[] =
-    [];
-  for (let i = 1; i <= JEDNOSTKA_SLOTS; i++) {
-    const jednostka = str(formData, `jedn${i}Jednostka`);
-    if (!jednostka) continue;
-    jednostki.push({
-      position: i,
-      jednostka,
-      samochod: strOrNull(formData, `jedn${i}Samochod`),
-      liczbaOsob: strOrNull(formData, `jedn${i}LiczbaOsob`),
-    });
-  }
-
-  const inneSluzby: {
-    position: number;
-    nazwa: string;
-    liczbaPojazdow: string | null;
-    liczbaOsob: string | null;
-  }[] = [];
-  for (let i = 1; i <= SLUZBA_SLOTS; i++) {
-    const nazwa = str(formData, `sluzba${i}Nazwa`);
-    if (!nazwa) continue;
-    inneSluzby.push({
-      position: i,
-      nazwa,
-      liczbaPojazdow: strOrNull(formData, `sluzba${i}Pojazdy`),
-      liczbaOsob: strOrNull(formData, `sluzba${i}Osoby`),
-    });
-  }
-
-  const dataPrzeslaniaRaw = str(formData, "dataPrzeslania");
-
-  const meldunek = await prisma.meldunek.create({
-    data: {
-      jednostkaZglaszajaca: str(formData, "jednostkaZglaszajaca") || "OSP Skawina II",
-      data: new Date(str(formData, "data")),
-      adresZdarzenia: str(formData, "adresZdarzenia"),
-      km: strOrNull(formData, "km"),
-      obiekt: strOrNull(formData, "obiekt"),
-      rodzajZdarzenia: str(formData, "rodzajZdarzenia"),
-      wlasciciel: strOrNull(formData, "wlasciciel"),
-      sposobZadysponowania: strOrNull(formData, "sposobZadysponowania"),
-
-      czasZadysponowanie: str(formData, "czasZadysponowanie"),
-      czasWyjazd: str(formData, "czasWyjazd"),
-      czasNaMiejscu: str(formData, "czasNaMiejscu"),
-      czasLokalizacjaZagrozenia: strOrNull(formData, "czasLokalizacjaZagrozenia"),
-      czasZakonczenieDzialan: str(formData, "czasZakonczenieDzialan"),
-      czasWKoszarach: str(formData, "czasWKoszarach"),
-
-      przyczyna: strOrNull(formData, "przyczyna"),
-      rodzajDzialan: strOrNull(formData, "rodzajDzialan"),
-      sprzetUzyty: strOrNull(formData, "sprzetUzyty"),
-      miejsceDzialan: strOrNull(formData, "miejsceDzialan"),
-
-      pradowWody: num(formData, "pradowWody"),
-      zuzytoWody: num(formData, "zuzytoWody"),
-      zuzytoSorbentow: num(formData, "zuzytoSorbentow"),
-      pradowProszku: num(formData, "pradowProszku"),
-      zuzytoProszku: num(formData, "zuzytoProszku"),
-      zuzytoNeutralizatorow: num(formData, "zuzytoNeutralizatorow"),
-      pradowPiany: num(formData, "pradowPiany"),
-      zuzytoSrPianotworczego: num(formData, "zuzytoSrPianotworczego"),
-
-      ofiaraImieNazwisko: strOrNull(formData, "ofiaraImieNazwisko"),
-      ofiaraWiek: strOrNull(formData, "ofiaraWiek"),
-      ofiaraPlec: strOrNull(formData, "ofiaraPlec"),
-      ofiaraDzialania: strOrNull(formData, "ofiaraDzialania"),
-      ofiaraSprzet: strOrNull(formData, "ofiaraSprzet"),
-
-      straty: num(formData, "straty"),
-      stratyBudynki: num(formData, "stratyBudynki"),
-      uratowano: num(formData, "uratowano"),
-      powierzchnia: num(formData, "powierzchnia"),
-      kubatura: num(formData, "kubatura"),
-      dlugosc: num(formData, "dlugosc"),
-      szerokosc: num(formData, "szerokosc"),
-      wysokosc: num(formData, "wysokosc"),
-
-      warunkiAtmosferyczne: strOrNull(formData, "warunkiAtmosferyczne"),
-      kierujacyNazwisko: strOrNull(formData, "kierujacyNazwisko"),
-      kierujacyImie: strOrNull(formData, "kierujacyImie"),
-      kierujacyOd: strOrNull(formData, "kierujacyOd"),
-      kierujacyDo: strOrNull(formData, "kierujacyDo"),
-      kierujacyJednostka: strOrNull(formData, "kierujacyJednostka"),
-      kierujacy2Nazwisko: strOrNull(formData, "kierujacy2Nazwisko"),
-      kierujacy2Imie: strOrNull(formData, "kierujacy2Imie"),
-      kierujacy2Od: strOrNull(formData, "kierujacy2Od"),
-      kierujacy2Do: strOrNull(formData, "kierujacy2Do"),
-      kierujacy2Jednostka: strOrNull(formData, "kierujacy2Jednostka"),
-
-      opisPrzebiegu: strOrNull(formData, "opisPrzebiegu"),
-      przekazanieMiejsca: strOrNull(formData, "przekazanieMiejsca"),
-      uleglaZniszczeniu: strOrNull(formData, "uleglaZniszczeniu"),
-
-      dataPrzeslania: dataPrzeslaniaRaw ? new Date(dataPrzeslaniaRaw) : null,
-      zglaszajacy: strOrNull(formData, "zglaszajacy"),
-
-      jednostki: { create: jednostki },
-      inneSluzby: { create: inneSluzby },
-    },
-  });
-
-  redirect(`/meldunki/${meldunek.id}`);
-}
+import { SendForm } from "@/components/SendForm";
+import { JEDNOSTKA_SLOTS, SLUZBA_SLOTS } from "@/lib/docx/meldunek-data";
 
 export default function NewMeldunekPage() {
   const inputClass =
@@ -137,13 +9,13 @@ export default function NewMeldunekPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-brand-navy">Nowy meldunek</h1>
+        <h1 className="text-xl font-semibold text-brand-navy">Meldunek</h1>
         <p className="text-sm text-gray-500">
-          Formularz odwzorowuje kartę zdarzenia OSP/PSP — po zapisaniu wygenerujesz gotowy DOCX.
+          Wypełnij kartę zdarzenia OSP/PSP i wyślij — meldunek (Word) trafi na e-mail OSP. Nic nie jest zapisywane w aplikacji.
         </p>
       </div>
 
-      <form action={createMeldunek} className="flex flex-col gap-4">
+      <SendForm endpoint="/api/send/meldunek" submitLabel="Wyślij meldunek na e-mail OSP" doneTitle="Meldunek wysłany na e-mail OSP">
         <details open className="rounded-xl border border-border bg-surface p-4">
           <summary className="cursor-pointer font-semibold text-brand-navy">Dane podstawowe</summary>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -422,15 +294,7 @@ export default function NewMeldunekPage() {
           </div>
         </details>
 
-        <div className="flex gap-3">
-          <button
-            type="submit"
-            className="rounded-lg bg-brand-red px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-red-dark"
-          >
-            Zapisz meldunek
-          </button>
-        </div>
-      </form>
+</SendForm>
     </div>
   );
 }

@@ -1,7 +1,9 @@
 import nodemailer from "nodemailer";
 
-// Keeps a comfortable margin under typical mailbox limits (OVH ~20 MB per message).
-export const MAX_ATTACHMENT_BYTES = 12 * 1024 * 1024;
+// Total size of all attachments; keeps a comfortable margin under typical mailbox limits (~20 MB).
+export const MAX_ATTACHMENTS_BYTES = 15 * 1024 * 1024;
+
+export type MailAttachment = { filename: string; content: Buffer; contentType: string };
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -16,10 +18,11 @@ export function isMailConfigured(): boolean {
 export async function sendToOsp(opts: {
   subject: string;
   text: string;
-  attachment: { filename: string; content: Buffer };
+  attachments: MailAttachment[];
 }): Promise<void> {
-  if (opts.attachment.content.length > MAX_ATTACHMENT_BYTES) {
-    throw new Error("Załącznik jest za duży do wysłania e-mailem (ponad 12 MB). Zmniejsz liczbę zdjęć.");
+  const total = opts.attachments.reduce((sum, a) => sum + a.content.length, 0);
+  if (total > MAX_ATTACHMENTS_BYTES) {
+    throw new Error("Załączniki są za duże do wysłania e-mailem (ponad 15 MB). Zmniejsz liczbę zdjęć.");
   }
 
   const port = Number(process.env.SMTP_PORT || 465);
@@ -30,13 +33,20 @@ export async function sendToOsp(opts: {
     auth: { user: requireEnv("SMTP_USER"), pass: requireEnv("SMTP_PASS") },
   });
 
-  await transporter.sendMail({
-    from: process.env.MAIL_FROM || requireEnv("SMTP_USER"),
-    to: requireEnv("OSP_EMAIL_TO"),
-    subject: opts.subject,
-    text: opts.text,
-    attachments: [
-      { filename: opts.attachment.filename, content: opts.attachment.content, contentType: "application/pdf" },
-    ],
-  });
+  try {
+    await transporter.sendMail({
+      from: process.env.MAIL_FROM || requireEnv("SMTP_USER"),
+      to: requireEnv("OSP_EMAIL_TO"),
+      subject: opts.subject,
+      text: opts.text,
+      attachments: opts.attachments,
+    });
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "EAUTH") throw new Error("Serwer poczty odrzucił login lub hasło (SMTP_USER / SMTP_PASS).");
+    if (code === "ECONNREFUSED" || code === "ETIMEDOUT" || code === "ENOTFOUND" || code === "ECONNECTION") {
+      throw new Error("Nie można połączyć się z serwerem poczty (sprawdź SMTP_HOST i SMTP_PORT).");
+    }
+    throw error;
+  }
 }

@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 
 const links = [
   { href: "/", label: "Pulpit", icon: "🏠" },
-  { href: "/reports", label: "Raporty z akcji", icon: "📄" },
-  { href: "/meldunki", label: "Meldunki", icon: "📋" },
+  { href: "/reports/new", label: "Raport z akcji", icon: "📄" },
+  { href: "/meldunki/new", label: "Meldunek", icon: "📋" },
   { href: "/deadlines", label: "Terminy ważności", icon: "⏰" },
   { href: "/profile", label: "Mój profil", icon: "👤" },
 ];
